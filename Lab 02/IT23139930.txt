@@ -1,0 +1,289 @@
+--Lab  Sheet 02--
+
+
+01)
+
+(a) Define Object Types
+
+-- Create incomplete type first
+CREATE OR REPLACE TYPE emp_t;
+/
+
+-- Create dept_t with reference to emp_t
+CREATE OR REPLACE TYPE dept_t AS OBJECT (
+    deptno CHAR(3),
+    deptname VARCHAR(36),
+    mgrno REF emp_t,
+    admrdept REF dept_t
+);
+/
+
+-- Now complete emp_t
+CREATE OR REPLACE TYPE emp_t AS OBJECT (
+    empno CHAR(6),
+    firstname VARCHAR(12),
+    lastname VARCHAR(15),
+    workdept REF dept_t,
+    sex CHAR(1),
+    birthdate DATE,
+    salary NUMBER(8,2)
+);
+/
+
+
+(b) Create Object Relational Tables
+
+-- Create ORDEPT table
+CREATE TABLE ORDEPT OF dept_t (
+    deptno PRIMARY KEY,
+    deptname NOT NULL
+);
+/
+
+-- Create OREMP table
+CREATE TABLE OREMP OF emp_t (
+    empno PRIMARY KEY,
+    firstname NOT NULL,
+    lastname NOT NULL
+);
+/
+
+
+(C)Insert Data
+
+--1: Insert into ORDEPT with NULL for admrdept
+
+INSERT INTO ORDEPT VALUES (
+    dept_t('A00', 'SPIFFY COMPUTER SERVICE DIV.', NULL, NULL)
+);
+/
+
+INSERT INTO ORDEPT VALUES (
+    dept_t('B01', 'PLANNING', NULL, NULL)
+);
+/
+
+INSERT INTO ORDEPT VALUES (
+    dept_t('C01', 'INFORMATION CENTRE', NULL, NULL)
+);
+/
+
+INSERT INTO ORDEPT VALUES (
+    dept_t('D01', 'DEVELOPMENT CENTRE', NULL, NULL)
+);
+/
+
+COMMIT;
+/
+
+
+--2: Insert into OREMP with NULL for workdept
+
+INSERT INTO OREMP VALUES (
+    emp_t('000010', 'CHRISTINE', 'HAAS', NULL, 'F', 
+          TO_DATE('14/AUG/53', 'DD/MON/RR'), 72750)
+);
+/
+
+INSERT INTO OREMP VALUES (
+    emp_t('000020', 'MICHAEL', 'THOMPSON', NULL, 'M', 
+          TO_DATE('02/FEB/68', 'DD/MON/RR'), 61250)
+);
+/
+
+INSERT INTO OREMP VALUES (
+    emp_t('000030', 'SALLY', 'KWAN', NULL, 'F', 
+          TO_DATE('11/MAY/71', 'DD/MON/RR'), 58250)
+);
+/
+
+INSERT INTO OREMP VALUES (
+    emp_t('000060', 'IRVING', 'STERN', NULL, 'M', 
+          TO_DATE('07/JUL/65', 'DD/MON/RR'), 55555)
+);
+/
+
+INSERT INTO OREMP VALUES (
+    emp_t('000070', 'EVA', 'PULASKI', NULL, 'F', 
+          TO_DATE('26/MAY/73', 'DD/MON/RR'), 56170)
+);
+/
+
+INSERT INTO OREMP VALUES (
+    emp_t('000050', 'JOHN', 'GEYER', NULL, 'M', 
+          TO_DATE('15/SEP/55', 'DD/MON/RR'), 60175)
+);
+/
+
+INSERT INTO OREMP VALUES (
+    emp_t('000090', 'EILEEN', 'HENDERSON', NULL, 'F', 
+          TO_DATE('15/MAY/61', 'DD/MON/RR'), 49750)
+);
+/
+
+INSERT INTO OREMP VALUES (
+    emp_t('000100', 'THEODORE', 'SPENSER', NULL, 'M', 
+          TO_DATE('18/DEC/76', 'DD/MON/RR'), 46150)
+);
+/
+
+COMMIT;
+/
+
+--3: Update OREMP with actual workdept REF values
+
+UPDATE OREMP E
+SET E.workdept = (SELECT REF(D) FROM ORDEPT D WHERE D.deptno = 'A00')
+WHERE E.empno = '000010';
+/
+
+UPDATE OREMP E
+SET E.workdept = (SELECT REF(D) FROM ORDEPT D WHERE D.deptno = 'B01')
+WHERE E.empno IN ('000020', '000090', '000100');
+/
+
+UPDATE OREMP E
+SET E.workdept = (SELECT REF(D) FROM ORDEPT D WHERE D.deptno = 'C01')
+WHERE E.empno IN ('000030', '000050');
+/
+
+UPDATE OREMP E
+SET E.workdept = (SELECT REF(D) FROM ORDEPT D WHERE D.deptno = 'D01')
+WHERE E.empno IN ('000060', '000070');
+/
+
+COMMIT;
+/
+
+--4: Update ORDEPT with mgrno and admrdept REF values
+
+UPDATE ORDEPT D
+SET D.mgrno = (SELECT REF(E) FROM OREMP E WHERE E.empno = '000010')
+WHERE D.deptno = 'A00';
+/
+
+UPDATE ORDEPT D
+SET D.mgrno = (SELECT REF(E) FROM OREMP E WHERE E.empno = '000020')
+WHERE D.deptno = 'B01';
+/
+
+UPDATE ORDEPT D
+SET D.mgrno = (SELECT REF(E) FROM OREMP E WHERE E.empno = '000030')
+WHERE D.deptno = 'C01';
+/
+
+UPDATE ORDEPT D
+SET D.mgrno = (SELECT REF(E) FROM OREMP E WHERE E.empno = '000060')
+WHERE D.deptno = 'D01';
+/
+
+-- Update admrdept references
+UPDATE ORDEPT D
+SET D.admrdept = (SELECT REF(D2) FROM ORDEPT D2 WHERE D2.deptno = 'A00')
+WHERE D.deptno IN ('A00', 'B01', 'C01');
+/
+
+UPDATE ORDEPT D
+SET D.admrdept = (SELECT REF(D2) FROM ORDEPT D2 WHERE D2.deptno = 'C01')
+WHERE D.deptno = 'D01';
+/
+
+COMMIT;
+/
+
+
+
+02)
+
+--(a) Department name and manager's lastname
+
+SELECT D.deptname, DEREF(D.mgrno).lastname AS manager_lastname
+FROM ORDEPT D;
+/
+
+
+--(b) Employee number, lastname and department name
+
+SELECT E.empno, E.lastname, DEREF(E.workdept).deptname AS dept_name
+FROM OREMP E;
+/
+
+
+--(c) Department number, name, and administrative department name
+
+SELECT D.deptno, D.deptname, DEREF(D.admrdept).deptname AS admin_dept_name
+FROM ORDEPT D;
+/
+
+
+--(d) Department info with administrative department manager's lastname
+
+SELECT D.deptno, 
+       D.deptname, 
+       DEREF(D.admrdept).deptname AS admin_dept_name,
+       DEREF(DEREF(D.admrdept).mgrno).lastname AS admin_mgr_lastname
+FROM ORDEPT D;
+/
+
+
+--(e) Employee details with their department manager's details
+
+SELECT E.empno, 
+       E.firstname, 
+       E.lastname, 
+       E.salary,
+       DEREF(DEREF(E.workdept).mgrno).lastname AS mgr_lastname,
+       DEREF(DEREF(E.workdept).mgrno).salary AS mgr_salary
+FROM OREMP E;
+/
+
+
+--(f) Average salary by gender for each department
+
+
+SELECT DEREF(E.workdept).deptno AS deptno,
+       DEREF(E.workdept).deptname AS deptname,
+       E.sex,
+       AVG(E.salary) AS avg_salary
+FROM OREMP E
+GROUP BY DEREF(E.workdept).deptno, DEREF(E.workdept).deptname, E.sex
+ORDER BY deptno, sex;
+/
+
+
+
+04)
+
+--DROP OBJECT TYPES & TABLES
+
+
+--Drop object tables
+DROP TABLE OREMP CASCADE CONSTRAINTS
+/
+
+DROP TABLE ORDEPT CASCADE CONSTRAINTS
+/
+
+
+--Drop object types
+DROP TYPE emp_t FORCE
+/
+
+DROP TYPE dept_t FORCE
+/me meka hri eka.arake Q 3 eke kotas mata petalila
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
